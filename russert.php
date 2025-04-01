@@ -307,7 +307,7 @@ class Russert {
 				return TRUE;
 			}
 			else {
-				throw new \Exception("Couldn't save RSS file.", 5112);
+				throw new \Exception("Couldn't save RSS file {$filename}.", 5112);
 			}
 		}
 		else {
