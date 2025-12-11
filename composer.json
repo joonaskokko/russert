@@ -15,9 +15,10 @@
 		}
 	},
 	"require" : {
-		"mongodb/mongodb": "^1.0.2",
 		"bvanhoekelen/terminal-style": "^1.0.4",
-		"league/uri": "^5.3.0"
+		"league/uri": "^5.3.0",
+		"ext-pdo": "*",
+		"ext-pdo_mysql": "*"
 	},
 	"config": {
 		"platform": {
