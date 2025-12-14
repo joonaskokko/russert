@@ -4,8 +4,8 @@ require_once("config.php");
 
 require_once __DIR__ . "/vendor/autoload.php";
 
-use PDO;
-use PDOException;
+//use PDO;
+//use PDOException;
 
 new Russert();
 
@@ -15,6 +15,8 @@ class Russert {
 	private $collection = NULL;
 	private $errors = [];
 	private $locked = FALSE;
+	private $start_time = NULL;
+	private $end_time = NULL;
 
 	// "Force" flags.
 	private $generate_rss = FALSE;
@@ -36,6 +38,9 @@ class Russert {
 
 			// Connect to database.
 			$this->connectDatabase();
+
+			// Ensure schema.
+			$this->ensureSchema();
 
 			// Help variable for getting single source name.
 			$single_source = NULL;
@@ -415,7 +420,7 @@ class Russert {
 			throw new \Exception("Invalid guid.", 5013);
 		}
 
-		$sql = "SELECT id, title, link, guid, seen, source FROM items WHERE guid = :guid LIMIT 1";
+		$sql = "SELECT id, title, link, guid, seen, source FROM item WHERE guid = :guid LIMIT 1";
 		try {
 			$stmt = $this->connection->prepare($sql);
 			$stmt->bindValue(':guid', $guid, PDO::PARAM_STR);
@@ -444,7 +449,7 @@ class Russert {
 
 	function getLatestItemsBySource(object $source, int $limit = 20) : array {
 		$sql = "SELECT id, title, link, guid, seen, source
-			FROM items
+			FROM item
 			WHERE source = :source
 			ORDER BY seen DESC
 			LIMIT :limit";
@@ -455,7 +460,8 @@ class Russert {
 			$stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
 			$stmt->execute();
 
-			$rows = $stmt->fetchAll();
+			$rows = $stmt->fetchAll(PDO::FETCH_OBJ);
+
 			return $rows ?: [];
 		}
 		catch (PDOException $e) {
@@ -490,7 +496,7 @@ class Russert {
 		}
 
 		// Actual save.
-		$sql = "INSERT INTO items (title, link, guid, seen, source)
+		$sql = "INSERT INTO item (title, link, guid, seen, source)
 		        VALUES (:title, :link, :guid, :seen, :source)";
 
 		try {
@@ -607,7 +613,7 @@ class Russert {
 
 	function connectDatabase() : void {
 		try {
-			if (DEBUG_MODE) {
+			if (DATABASE_DRIVER == 'sqlite') {
 				$this->connection = new PDO('sqlite::memory:');
 				return;
 			}
@@ -625,6 +631,87 @@ class Russert {
 		}
 		catch (Exception $e) {
 			throw new \Exception("Connecting to MySQL failed: {$e->getMessage()}.", 5004);
+		}
+	}
+
+
+	/**
+	 * Ensure required SQL schema exists.
+	 * Creates tables if they are missing.
+	 *
+	 * @return void
+	 * @throws Exception On schema creation failure.
+	 */
+
+	function ensureSchema() : void {
+		$this->log("Ensuring database schema.");
+		try {
+			$driver = $this->connection->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+			if ($driver === 'mysql') {
+				// MySQL: check table existence via INFORMATION_SCHEMA
+				$sql = "
+					SELECT COUNT(*)
+					FROM information_schema.tables
+					WHERE table_schema = DATABASE()
+					  AND table_name = 'item'
+				";
+
+				$exists = (int) $this->connection->query($sql)->fetchColumn();
+
+				if ($exists === 0) {
+					$this->connection->exec("
+						CREATE TABLE item (
+							id INT AUTO_INCREMENT PRIMARY KEY,
+							title VARCHAR(1024) NOT NULL,
+							link VARCHAR(2048) NOT NULL,
+							guid VARCHAR(512) NOT NULL,
+							seen DATETIME NOT NULL,
+							source VARCHAR(255) NOT NULL,
+							UNIQUE KEY uniq_guid (guid),
+							KEY idx_source (source),
+							KEY idx_seen (seen)
+						) ENGINE=InnoDB
+						  DEFAULT CHARSET=utf8mb4
+						  COLLATE=utf8mb4_unicode_ci
+					");
+				}
+			}
+			elseif ($driver === 'sqlite') {
+				// SQLite: check sqlite_master
+				$sql = "
+					SELECT name
+					FROM sqlite_master
+					WHERE type='table' AND name='item'
+				";
+
+				$stmt = $this->connection->prepare($sql);
+				$stmt->execute();
+				$exists = $stmt->fetchColumn();
+
+				if (!$exists) {
+					$this->connection->exec("
+						CREATE TABLE item (
+							id INTEGER PRIMARY KEY AUTOINCREMENT,
+							title TEXT NOT NULL,
+							link TEXT NOT NULL,
+							guid TEXT NOT NULL UNIQUE,
+							seen TEXT NOT NULL,
+							source TEXT NOT NULL
+						)
+					");
+
+					// Optional but recommended indexes
+					$this->connection->exec("CREATE INDEX idx_item_source ON item(source)");
+					$this->connection->exec("CREATE INDEX idx_item_seen ON item(seen)");
+				}
+			}
+			else {
+				throw new Exception("Unsupported database driver: {$driver}");
+			}
+		}
+		catch (PDOException $e) {
+			throw new Exception("Ensuring database schema failed: {$e->getMessage()}", 5001);
 		}
 	}
 

@@ -23,7 +23,7 @@
 				]]>
 			<?php endif?>
 			</description>
-			<pubDate><?=date("r", ($item->seen->__toString() / 1000));?></pubDate>
+			<pubDate><?=date("r", strtotime($item->seen));?></pubDate>
 			<guid><?=htmlspecialchars($item->guid);?></guid>
 		</item>
 <?php endforeach;?>
