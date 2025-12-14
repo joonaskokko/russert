@@ -426,7 +426,7 @@ class Russert {
 			$stmt->bindValue(':guid', $guid, PDO::PARAM_STR);
 			$stmt->execute();
 
-			$row = $stmt->fetch();
+			$row = $stmt->fetch(PDO::FETCH_OBJ);
 			if ($row) {
 				return $row;
 			}
