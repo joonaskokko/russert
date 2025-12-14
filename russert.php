@@ -415,7 +415,7 @@ class Russert {
 	 * @return Object Item Object.
 	 */
 
-	function getItemByGuid(string $guid) : array {
+	function getItemByGuid(string $guid) : object {
 		if (empty($guid)) {
 			throw new \Exception("Invalid guid.", 5013);
 		}
