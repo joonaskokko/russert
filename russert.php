@@ -420,7 +420,7 @@ class Russert {
 			throw new \Exception("Invalid guid.", 5013);
 		}
 
-		$sql = "SELECT id, title, link, guid, seen, source FROM item WHERE guid = :guid LIMIT 1";
+		$sql = "SELECT id, title, image, link, guid, seen, source FROM item WHERE guid = :guid LIMIT 1";
 		try {
 			$stmt = $this->connection->prepare($sql);
 			$stmt->bindValue(':guid', $guid, PDO::PARAM_STR);
@@ -448,7 +448,7 @@ class Russert {
 	 */
 
 	function getLatestItemsBySource(object $source, int $limit = 20) : array {
-		$sql = "SELECT id, title, link, guid, seen, source
+		$sql = "SELECT id, title, image, link, guid, seen, source
 			FROM item
 			WHERE source = :source
 			ORDER BY seen DESC
@@ -496,12 +496,13 @@ class Russert {
 		}
 
 		// Actual save.
-		$sql = "INSERT INTO item (title, link, guid, seen, source)
-		        VALUES (:title, :link, :guid, :seen, :source)";
+		$sql = "INSERT INTO item (title, image, link, guid, seen, source)
+		        VALUES (:title, :image, :link, :guid, :seen, :source)";
 
 		try {
 			$stmt = $this->connection->prepare($sql);
 			$stmt->bindValue(':title', $item['title'], PDO::PARAM_STR);
+			$stmt->bindValue(':image', $item['image'] ?? null, PDO::PARAM_STR);
 			$stmt->bindValue(':link', $item['link'], PDO::PARAM_STR);
 			$stmt->bindValue(':guid', $item['guid'], PDO::PARAM_STR);
 			$stmt->bindValue(':seen', $seen, PDO::PARAM_STR);
@@ -664,6 +665,7 @@ class Russert {
 						CREATE TABLE item (
 							id INT AUTO_INCREMENT PRIMARY KEY,
 							title VARCHAR(1024) NOT NULL,
+							image VARCHAR(1024) DEFAULT NULL,
 							link VARCHAR(2048) NOT NULL,
 							guid VARCHAR(512) NOT NULL,
 							seen DATETIME NOT NULL,
@@ -694,6 +696,7 @@ class Russert {
 						CREATE TABLE item (
 							id INTEGER PRIMARY KEY AUTOINCREMENT,
 							title TEXT NOT NULL,
+							image TEXT DEFAULT NULL,
 							link TEXT NOT NULL,
 							guid TEXT NOT NULL UNIQUE,
 							seen TEXT NOT NULL,
